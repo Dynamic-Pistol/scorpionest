@@ -1,0 +1,16 @@
+[package]
+name = "scorpionest"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ariadne = "0.4.0"
+chumsky = "1.0.0-alpha.6"
+lasso = "0.7.2"
+logos = "0.14.0"
+pretty = { version = "0.12.1", features = ["termcolor"] }
+
+[toolchain]
+channel = "nightly"
