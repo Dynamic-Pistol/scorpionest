@@ -24,6 +24,7 @@ pub mod scorpparser {
     //----------------------------------------------------------------
 
     fn recursive_expr_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Expr> {
+        println!("Rec Expr");
         recursive(|f| {
             choice((
                 func_call_parser(f.clone()),
@@ -40,6 +41,7 @@ pub mod scorpparser {
     where
         RP: TokenParser<'a, I, Expr>,
     {
+        println!("Func Call");
         var_ident()
             .then(
                 recursive_parser
@@ -48,8 +50,8 @@ pub mod scorpparser {
                     .or_not()
                     .delimited_by(
                         just(TokenType::LeftParenthesis),
-                        just(TokenType::RightParenthesis)
-                    )
+                        just(TokenType::RightParenthesis),
+                    ),
             )
             .map(|(name, args)| Expr::FunctionCall {
                 func_name: Box::new(name),
@@ -63,17 +65,14 @@ pub mod scorpparser {
     where
         RP: TokenParser<'a, I, Expr>,
     {
+        println!("Binary");
         let unary = unary_parser(recursive_parser).map_with(|ident, e| Spanned(ident, e.span()));
 
         let product = unary.clone().foldl(
-            choice((
-                just(TokenType::Times),
-                just(TokenType::Div),
-                just(TokenType::Mod),
-            ))
-            .map_with(|ident, e| Spanned(ident, e.span()))
-            .then(unary)
-            .repeated(),
+            choice((just(TokenType::Times), just(TokenType::Div)))
+                .map_with(|ident, e| Spanned(ident, e.span()))
+                .then(unary)
+                .repeated(),
             |lhs, (op, rhs)| {
                 let span: SimpleSpan = (lhs.1.start()..rhs.1.end()).into();
                 Spanned(
@@ -138,6 +137,7 @@ pub mod scorpparser {
     where
         EP: TokenParser<'a, I, Expr>,
     {
+        println!("Unary");
         choice((just(TokenType::Not), just(TokenType::Minus)))
             .map_with(|ident, e| Spanned(ident, e.span()))
             .repeated()
@@ -161,6 +161,7 @@ pub mod scorpparser {
     where
         EP: TokenParser<'a, I, Expr>,
     {
+        println!("Atom");
         choice((
             select! {
                TokenType::True = e => Expr::Literal { value: Spanned(Data::Object::Boolean(true), e.span()) },
@@ -185,6 +186,7 @@ pub mod scorpparser {
     where
         EP: TokenParser<'a, I, Expr>,
     {
+        println!("Tenary");
         just(TokenType::If)
             .ignore_then(
                 expr_parser
@@ -211,6 +213,7 @@ pub mod scorpparser {
     //----------------------------------------------------------------
 
     fn stmt_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Statement> {
+        println!("Stmt");
         recursive(|f| {
             choice((
                 assign_parser(),
@@ -227,9 +230,8 @@ pub mod scorpparser {
         .boxed()
     }
 
-    fn assign_parser<'a, I: TokenInput<'a>>(
-    ) -> impl TokenParser<'a, I, Statement>
-    {
+    fn assign_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Statement> {
+        println!("Assign");
         group((
             var_ident(),
             choice((
@@ -238,7 +240,6 @@ pub mod scorpparser {
                 just(TokenType::MinusAssign),
                 just(TokenType::TimesAssign),
                 just(TokenType::DivAssign),
-                just(TokenType::ModAssign),
             ))
             .map_with(|ident, e| Spanned(ident, e.span())),
             recursive_expr_parser().map_with(|ident, e| Spanned(ident, e.span())),
@@ -256,6 +257,7 @@ pub mod scorpparser {
     where
         RP: TokenParser<'a, I, Statement>,
     {
+        println!("Defer");
         just(TokenType::Defer)
             .ignore_then(stmt_parser.map_with(|ident, e| Spanned(ident, e.span())))
             .map(|stmt| Statement::Defer {
@@ -264,6 +266,7 @@ pub mod scorpparser {
     }
 
     fn empty_stmt_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Statement> {
+        println!("Empty");
         empty()
             .to(Statement::Empty)
             .then_ignore(just(TokenType::SemiColon))
@@ -275,6 +278,7 @@ pub mod scorpparser {
     where
         RP: TokenParser<'a, I, Statement>,
     {
+        println!("Block");
         stmt_parser
             .map_with(|ident, e| Spanned(ident, e.span()))
             .repeated()
@@ -285,12 +289,14 @@ pub mod scorpparser {
     }
 
     fn statment_expr_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Statement> {
+        println!("Stmt Expr");
         recursive_expr_parser()
             .map_with(|ident, e| Spanned(ident, e.span()))
             .map(|e| Statement::Expression { expr: Box::new(e) })
     }
 
     fn var_declaration_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Statement> {
+        println!("Var");
         group((
             choice((
                 just(TokenType::Let).to(DeclarationType::Immutable),
@@ -316,6 +322,7 @@ pub mod scorpparser {
     where
         RP: TokenParser<'a, I, Statement>,
     {
+        println!("If");
         just(TokenType::If)
             .ignore_then(group((
                 recursive_expr_parser().map_with(|ident, e| Spanned(ident, e.span())),
@@ -339,6 +346,7 @@ pub mod scorpparser {
     }
 
     fn match_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Statement> {
+        println!("Match");
         just(TokenType::Match)
             .ignore_then(recursive_expr_parser().map_with(|ident, e| Spanned(ident, e.span())))
             .then(
@@ -352,17 +360,17 @@ pub mod scorpparser {
                 ))
                 .separated_by(just(TokenType::Comma))
                 .allow_trailing()
-                .collect::<HashMap<_,_>>()
+                .collect::<HashMap<_, _>>()
                 .delimited_by(just(TokenType::LeftBracket), just(TokenType::RightBracket)),
             )
-            .map(|expr| 
-                Statement::MatchStmt {
+            .map(|expr| Statement::MatchStmt {
                 predicate: Box::new(expr.0),
                 then_branches: expr.1,
             })
     }
 
     fn func_params_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Statement> {
+        println!("Func Params");
         choice((
             just(TokenType::Ref).to(ParamType::Reference),
             just(TokenType::Val).to(ParamType::Value),
@@ -395,6 +403,7 @@ pub mod scorpparser {
     where
         RP: TokenParser<'a, I, Statement>,
     {
+        println!("Func");
         just(TokenType::Function)
             .ignore_then(var_ident())
             .then(
@@ -429,10 +438,12 @@ pub mod scorpparser {
     //----------------------------------------------------------------
 
     fn recursive_pat_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Pattern> {
+        println!("Pat");
         recursive(|_| choice((atom_pattern_parser(),))).boxed()
     }
 
     fn atom_pattern_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Pattern> {
+        println!("Atom Pat");
         select! {
             TokenType::WildCard => Pattern::WildCard,
             TokenType::Number(i) => Pattern::IntLiteral(i),
@@ -449,7 +460,7 @@ pub mod scorpparser {
     ) -> impl TokenInput<'a> {
         let (tokens, input) = tokens_and_input;
         chumsky::input::Stream::from_iter(tokens)
-        .spanned::<_, chumsky::span::SimpleSpan>((input.len()..input.len()).into())
+            .spanned::<_, chumsky::span::SimpleSpan>((input.len()..input.len()).into())
     }
 
     fn var_ident<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Spanned<String>> {

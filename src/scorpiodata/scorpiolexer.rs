@@ -84,8 +84,6 @@ pub mod scorplexer {
         TimesAssign,
         #[token("/=")]
         DivAssign,
-        #[token("%=")]
-        ModAssign,
         #[token("=")]
         Assign,
         #[token("+")]
@@ -96,8 +94,6 @@ pub mod scorplexer {
         Times,
         #[token("/")]
         Div,
-        #[token("%")]
-        Mod,
         #[token("==")]
         Equal,
         #[token("!=")]
@@ -165,8 +161,8 @@ pub mod scorplexer {
 
     pub fn scan<'a>(input: &'a str) -> Result<Vec<(TokenType, SimpleSpan)>, String> {
         let token_lexer = TokenType::lexer(input);
-        let mut tokens : Vec<(TokenType, SimpleSpan)> = vec![];
-        for token_res in token_lexer.spanned(){
+        let mut tokens: Vec<(TokenType, SimpleSpan)> = vec![];
+        for token_res in token_lexer.spanned() {
             if token_res.0.is_err() {
                 return Err(format!("LexError: {:?}", token_res.0.unwrap_err()));
             } else {
