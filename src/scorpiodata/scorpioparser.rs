@@ -215,11 +215,12 @@ pub mod scorpparser {
     fn stmt_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Statement> {
         println!("Stmt");
         recursive(|f| {
+            let expr = recursive_expr_parser();
             choice((
-                assign_parser(),
+                assign_parser(expr.clone()),
                 defer_stmt_parser(f.clone()),
-                statment_expr_parser(),
-                match_parser(),
+                statment_expr_parser(expr.clone()),
+                match_parser(expr),
                 func_parser(f.clone()),
                 block_parser(f.clone()),
                 var_declaration_parser(),
@@ -230,7 +231,12 @@ pub mod scorpparser {
         .boxed()
     }
 
-    fn assign_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Statement> {
+    fn assign_parser<'a, EP, I: TokenInput<'a>>(
+        expr_parser: EP,
+    ) -> impl TokenParser<'a, I, Statement>
+    where
+        EP: TokenParser<'a, I, Expr>,
+    {
         println!("Assign");
         group((
             var_ident(),
@@ -242,7 +248,7 @@ pub mod scorpparser {
                 just(TokenType::DivAssign),
             ))
             .map_with(|ident, e| Spanned(ident, e.span())),
-            recursive_expr_parser().map_with(|ident, e| Spanned(ident, e.span())),
+            expr_parser.map_with(|ident, e| Spanned(ident, e.span())),
         ))
         .map(|(var, op, expr)| Statement::Assign {
             name: var,
@@ -288,9 +294,14 @@ pub mod scorpparser {
             .map(|stmts| Statement::Block { statments: stmts })
     }
 
-    fn statment_expr_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Statement> {
+    fn statment_expr_parser<'a, EP, I: TokenInput<'a>>(
+        expr_parser: EP,
+    ) -> impl TokenParser<'a, I, Statement>
+    where
+        EP: TokenParser<'a, I, Expr>,
+    {
         println!("Stmt Expr");
-        recursive_expr_parser()
+        expr_parser
             .map_with(|ident, e| Spanned(ident, e.span()))
             .map(|e| Statement::Expression { expr: Box::new(e) })
     }
@@ -345,10 +356,15 @@ pub mod scorpparser {
             })
     }
 
-    fn match_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Statement> {
+    fn match_parser<'a, EP, I: TokenInput<'a>>(
+        expr_parser: EP,
+    ) -> impl TokenParser<'a, I, Statement>
+    where
+        EP: TokenParser<'a, I, Expr>,
+    {
         println!("Match");
         just(TokenType::Match)
-            .ignore_then(recursive_expr_parser().map_with(|ident, e| Spanned(ident, e.span())))
+            .ignore_then(expr_parser.map_with(|ident, e| Spanned(ident, e.span())))
             .then(
                 group((
                     recursive_pat_parser()

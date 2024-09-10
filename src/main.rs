@@ -1,17 +1,19 @@
 #![feature(trait_alias)]
 
 pub mod scorpiodata;
-use scorpiodata as Data;
 use std::io::Read;
 
-fn main() {
+use scorpiodata as Data;
+
+fn main() -> Result<(), String> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     let input = match args.len() {
         0 => run_prompt(),
         _ => read_input(args.get(0).unwrap_or(&String::new()).to_string()),
     };
-    run(&input);
+    run(&input)?;
     std::io::stdin().read(&mut [0]).unwrap();
+    Ok(())
 }
 
 fn read_input(contents: String) -> String {
@@ -36,15 +38,10 @@ fn run_prompt() -> String {
     prompt
 }
 
-fn run(input: &str) {
-    let tokens = Data::scan(input);
-    let stream = match tokens {
-        Ok(t) => Data::get_stream((t, input)),
-        Err(e) => {
-            eprintln!("{}", e);
-            return;
-        }
-    };
+fn run(input: &str) -> Result<(), String> {
+    let tokens = Data::scan(input)?;
+    let stream = Data::get_stream((tokens, input));
     let stmt = Data::parse(stream);
     Data::stmt_eval(stmt.clone());
+    return Ok(());
 }

@@ -153,7 +153,6 @@ pub mod scorplexer {
         #[token("null")]
         Null,
         #[regex(r"//[^\n]*", logos::skip)]
-        #[regex(r"/\*([^*]|\*[^/])*\*/", logos::skip)]
         Comment,
         #[end]
         EOF,
