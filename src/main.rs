@@ -42,17 +42,18 @@ fn get_prompt() -> String {
     prompt
 }
 
-fn run(input: &str) -> anyhow::Result<()> {
+fn run<'a>(input: &str) -> anyhow::Result<()> {
     // Report::build(ariadne::ReportKind::Error, "test.scorp", 12)
     //     .with_code(3)
     //     .with_message(format!("Invalid error!"))
     //     .with_label(Label::new(1..2));
-    let new_rodeo = Rodeo::default();
-    let var_name = Data::NeededItems { rodeo: &new_rodeo };
-    let mut items = var_name;
+    let mut new_rodeo = Rodeo::default();
+    let items = Data::NeededItems::<'a> {
+        rodeo: &mut new_rodeo,
+    };
     let tokens = Data::scan(input)?;
     let stream = Data::get_stream((tokens, input));
     let stmt = Data::parse(stream, items);
-    Data::stmt_eval(stmt.clone())?;
+    // Data::stmt_eval(stmt.clone())?;
     return Ok(());
 }

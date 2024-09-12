@@ -2,31 +2,31 @@ pub mod scorpexpressions {
     use crate::Data::{Object, Spanned, TokenType};
 
     #[derive(Debug, Clone)]
-    pub enum Expr {
+    pub enum Expr<'a> {
         Error,
         Binary {
-            left: Box<Spanned<Expr>>,
+            left: Box<Spanned<Expr<'a>>>,
             operator: Spanned<TokenType>,
-            right: Box<Spanned<Expr>>,
+            right: Box<Spanned<Expr<'a>>>,
         },
         Literal {
-            value: Spanned<Object>,
+            value: Spanned<Object<'a>>,
         },
         Unary {
             operator: Spanned<TokenType>,
-            right: Box<Spanned<Expr>>,
+            right: Box<Spanned<Expr<'a>>>,
         },
         Variable {
             name: Spanned<String>,
         },
         TenaryIfStmt {
-            condition: Box<Spanned<Expr>>,
-            value: Box<Spanned<Expr>>,
-            else_value: Box<Spanned<Expr>>,
+            condition: Box<Spanned<Expr<'a>>>,
+            value: Box<Spanned<Expr<'a>>>,
+            else_value: Box<Spanned<Expr<'a>>>,
         },
         FunctionCall {
             func_name: Box<Spanned<String>>,
-            arguments: Option<Vec<Expr>>,
+            arguments: Option<Vec<Expr<'a>>>,
         },
     }
 }
@@ -58,26 +58,26 @@ pub mod scorpiostatments {
     }
 
     #[derive(Debug, Clone)]
-    pub enum Statement {
+    pub enum Statement<'a> {
         Error,
         Empty,
-        Test(Expr),
+        Test(Expr<'a>),
         Assign {
             name: Spanned<String>,
             operator: Spanned<TokenType>,
-            value: Box<Spanned<Expr>>,
+            value: Box<Spanned<Expr<'a>>>,
         },
         Block {
-            statments: Vec<Spanned<Statement>>,
+            statments: Vec<Spanned<Statement<'a>>>,
         },
         Expression {
-            expr: Box<Spanned<Expr>>,
+            expr: Box<Spanned<Expr<'a>>>,
         },
         Declaration {
             declaration_type: DeclarationType,
             name: Spanned<String>,
             manual_type: Option<Spanned<Type>>,
-            value: Box<Spanned<Expr>>,
+            value: Box<Spanned<Expr<'a>>>,
         },
         FuncParameter {
             param_type: Box<Spanned<ParamType>>,
@@ -87,25 +87,25 @@ pub mod scorpiostatments {
         },
         FuncDeclaration {
             name: Spanned<String>,
-            parameters: Vec<Statement>,
+            parameters: Vec<Statement<'a>>,
             return_type: Option<Spanned<Type>>,
-            statments: Vec<Spanned<Statement>>,
+            statments: Vec<Spanned<Statement<'a>>>,
         },
         IfStmt {
-            condition: Box<Spanned<Expr>>,
-            then_branch: Box<Spanned<Statement>>,
-            else_branch: Option<Box<Spanned<Statement>>>,
+            condition: Box<Spanned<Expr<'a>>>,
+            then_branch: Box<Spanned<Statement<'a>>>,
+            else_branch: Option<Box<Spanned<Statement<'a>>>>,
         },
         MatchStmt {
-            predicate: Box<Spanned<Expr>>,
-            then_branches: HashMap<Spanned<Pattern>, Spanned<Statement>>,
+            predicate: Box<Spanned<Expr<'a>>>,
+            then_branches: HashMap<Spanned<Pattern>, Spanned<Statement<'a>>>,
         },
         WhileStmt {
-            condition: Box<Spanned<Expr>>,
-            then_branch: Box<Spanned<Statement>>,
+            condition: Box<Spanned<Expr<'a>>>,
+            then_branch: Box<Spanned<Statement<'a>>>,
         },
         Defer {
-            defered_statment: Box<Spanned<Statement>>,
+            defered_statment: Box<Spanned<Statement<'a>>>,
         },
     }
 }
@@ -121,7 +121,7 @@ pub mod scorpiopatterns {
         TypeName(Type),
     }
 
-    impl TryFrom<Expr> for Pattern {
+    impl<'a> TryFrom<Expr<'a>> for Pattern {
         type Error = ();
 
         fn try_from(value: Expr) -> Result<Self, Self::Error> {

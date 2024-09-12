@@ -1,12 +1,13 @@
 pub mod scorputils {
-    use std::{fmt::Display, ops::Deref};
+
+    use std::fmt::Display;
 
     use chumsky::span::{SimpleSpan, Span};
-    use lasso::{Rodeo, Spur};
+    use lasso::{Rodeo, RodeoResolver, Spur};
 
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug)]
     pub struct NeededItems<'a> {
-        pub rodeo: &'a Rodeo,
+        pub rodeo: &'a mut Rodeo,
     }
 
     #[derive(Debug, PartialEq, Eq, Hash)]
@@ -61,15 +62,15 @@ pub mod scorputils {
     }
 
     #[derive(Debug, Clone, Copy)]
-    pub enum Object {
-        String(Spur, &'static Rodeo),
+    pub enum Object<'a> {
+        String(Spur, &'a RodeoResolver),
         Integer(i32),
         Float(f32),
         Boolean(bool),
         NullValue,
     }
 
-    impl Display for Object {
+    impl<'a> Display for Object<'a> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match &self {
                 Object::String(s, r) => write!(f, "{}", r.resolve(s)),
@@ -81,7 +82,7 @@ pub mod scorputils {
         }
     }
 
-    impl Into<bool> for Object {
+    impl<'a> Into<bool> for Object<'a> {
         fn into(self) -> bool {
             if let Object::Boolean(b) = self {
                 return b;
