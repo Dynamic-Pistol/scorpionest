@@ -1,12 +1,9 @@
 pub mod scorpexpressions {
-    use crate::Data::{Object, Spanned, Statement, TokenType};
+    use crate::Data::{Object, Spanned, TokenType};
 
     #[derive(Debug, Clone)]
     pub enum Expr {
         Error,
-        Stmt {
-            statment: Box<Spanned<Statement>>,
-        },
         Binary {
             left: Box<Spanned<Expr>>,
             operator: Spanned<TokenType>,
@@ -36,7 +33,7 @@ pub mod scorpexpressions {
 pub mod scorpiostatments {
     use std::collections::HashMap;
 
-    use crate::Data::{Expr, Pattern, Spanned, Type, TokenType};
+    use crate::Data::{Expr, Pattern, Spanned, TokenType, Type};
 
     #[derive(Debug, Clone)]
     pub enum DeclarationType {
@@ -62,8 +59,9 @@ pub mod scorpiostatments {
 
     #[derive(Debug, Clone)]
     pub enum Statement {
-        Empty,
         Error,
+        Empty,
+        Test(Expr),
         Assign {
             name: Spanned<String>,
             operator: Spanned<TokenType>,
@@ -125,13 +123,12 @@ pub mod scorpiopatterns {
 
     impl TryFrom<Expr> for Pattern {
         type Error = ();
-        
+
         fn try_from(value: Expr) -> Result<Self, Self::Error> {
             if let Expr::Literal { value } = value {
                 if let Object::Integer(i) = value.0 {
                     return Ok(Pattern::IntLiteral(i));
-                }
-                else {
+                } else {
                     return Err(());
                 }
             }

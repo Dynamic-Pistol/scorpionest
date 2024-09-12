@@ -1,11 +1,12 @@
 pub mod scorplexer {
-    use std::{num::ParseIntError, str::ParseBoolError};
 
     use chumsky::span::SimpleSpan;
     use logos::Logos;
     #[derive(Logos, Debug, Clone, PartialEq)]
     #[logos(skip r"[\r\n\t ]+", error = LexingErrorKind)]
     pub enum TokenType {
+        #[token("test")]
+        Test,
         #[token("struct")]
         Struct,
         #[token("class")]
@@ -158,12 +159,12 @@ pub mod scorplexer {
         EOF,
     }
 
-    pub fn scan<'a>(input: &'a str) -> Result<Vec<(TokenType, SimpleSpan)>, String> {
+    pub fn scan<'a>(input: &'a str) -> anyhow::Result<Vec<(TokenType, SimpleSpan)>> {
         let token_lexer = TokenType::lexer(input);
         let mut tokens: Vec<(TokenType, SimpleSpan)> = vec![];
         for token_res in token_lexer.spanned() {
             if token_res.0.is_err() {
-                return Err(format!("LexError: {:?}", token_res.0.unwrap_err()));
+                return Err(anyhow::anyhow!(LexingErrorKind::Other));
             } else {
                 tokens.push((token_res.0.unwrap_or(TokenType::EOF), token_res.1.into()));
             }
@@ -171,32 +172,16 @@ pub mod scorplexer {
         Ok(tokens)
     }
 
-    #[derive(Debug, PartialEq, Clone, Default)]
+    #[derive(Debug, PartialEq, Clone, Default, thiserror::Error)]
     pub enum LexingErrorKind {
+        #[error("Int overflowed")]
         IntOverflowError,
+        #[error("Zero or empty int")]
         IntZeroOrEmptyError,
-        InvalidDigitError,
-        InvalidBoolError,
+        #[error("Invalid parsing")]
+        InvalidParseError,
+        #[error("Unknown or not implemented yet error!")]
         #[default]
         Other,
-    }
-
-    impl From<ParseBoolError> for LexingErrorKind {
-        fn from(_: ParseBoolError) -> Self {
-            return Self::InvalidBoolError;
-        }
-    }
-
-    impl From<ParseIntError> for LexingErrorKind {
-        fn from(value: ParseIntError) -> Self {
-            match value.kind() {
-                std::num::IntErrorKind::Empty => LexingErrorKind::IntZeroOrEmptyError,
-                std::num::IntErrorKind::InvalidDigit => LexingErrorKind::InvalidDigitError,
-                std::num::IntErrorKind::PosOverflow => LexingErrorKind::IntOverflowError,
-                std::num::IntErrorKind::NegOverflow => LexingErrorKind::IntOverflowError,
-                std::num::IntErrorKind::Zero => LexingErrorKind::IntZeroOrEmptyError,
-                _ => LexingErrorKind::Other,
-            }
-        }
     }
 }

@@ -1,5 +1,13 @@
 pub mod scorputils {
+    use std::{fmt::Display, ops::Deref};
+
     use chumsky::span::{SimpleSpan, Span};
+    use lasso::{Rodeo, Spur};
+
+    #[derive(Debug, Clone, Copy)]
+    pub struct NeededItems<'a> {
+        pub rodeo: &'a Rodeo,
+    }
 
     #[derive(Debug, PartialEq, Eq, Hash)]
     pub struct Spanned<T>(pub T, pub SimpleSpan);
@@ -52,84 +60,23 @@ pub mod scorputils {
         Generic(Box<Type>, Vec<Type>),
     }
 
-    #[derive(Debug, Clone, PartialEq, PartialOrd)]
+    #[derive(Debug, Clone, Copy)]
     pub enum Object {
-        String(String),
+        String(Spur, &'static Rodeo),
         Integer(i32),
         Float(f32),
         Boolean(bool),
         NullValue,
     }
 
-    impl std::ops::Add for Object {
-        type Output = Result<Object, String>;
-
-        fn add(self, rhs: Self) -> Self::Output {
-            use Object::{Float, Integer, String};
-            match (self, rhs) {
-                (String(s1), String(s2)) => Ok(String(format!("{s1}{s2}"))),
-                (Integer(i1), Integer(i2)) => Ok(Integer(i1 + i2)),
-                (Integer(i), Float(f)) | (Float(f), Integer(i)) => Ok(Float(f + i as f32)),
-                (Float(f1), Object::Float(f2)) => Ok(Float(f1 + f2)),
-                _ => Err(std::string::String::from(
-                    "Invalid operator,can only add with Int or Float",
-                )),
-            }
-        }
-    }
-
-    impl std::ops::Sub for Object {
-        type Output = Result<Object, String>;
-
-        fn sub(self, rhs: Self) -> Self::Output {
-            use Object::{Float, Integer};
-            match (self, rhs) {
-                (Integer(i1), Integer(i2)) => Ok(Integer(i1 - i2)),
-                (Float(f), Integer(i)) => Ok(Float(f - i as f32)),
-                (Integer(i), Float(f)) => Ok(Float(i as f32 - f)),
-                (Float(f1), Float(f2)) => Ok(Float(f1 - f2)),
-                _ => Err(String::from(
-                    "Invalid operator,can only subtract with Int or Float",
-                )),
-            }
-        }
-    }
-
-    impl std::ops::Mul for Object {
-        type Output = Result<Object, String>;
-
-        fn mul(self, rhs: Self) -> Self::Output {
-            use Object::{Float, Integer};
-            match (self, rhs) {
-                (Integer(i1), Integer(i2)) => Ok(Integer(i1 * i2)),
-                (Integer(i), Float(f)) | (Float(f), Integer(i)) => Ok(Object::Float(f * i as f32)),
-                (Float(f1), Float(f2)) => Ok(Float(f1 * f2)),
-                _ => Err(String::from(
-                    "Invalid operator,can only multiply with Int or Float",
-                )),
-            }
-        }
-    }
-
-    impl std::ops::Div for Object {
-        type Output = Result<Object, String>;
-
-        fn div(self, rhs: Self) -> Self::Output {
-            use Object::{Float, Integer};
-            match (self, rhs) {
-                (Integer(i1), Integer(i2)) => match i1.checked_div(i2) {
-                    Some(i) => Ok(Integer(i)),
-                    None => Err(String::from("Can't divide with 0!")),
-                },
-                (Float(f), Integer(i)) => match i {
-                    0 => todo!(),
-                    _ => Ok(Float(f / i as f32)),
-                },
-                (Integer(i), Float(f)) => Ok(Float(i as f32 / f)),
-                (Float(f1), Float(f2)) => Ok(Float(f1 / f2 as f32)),
-                _ => Err(String::from(
-                    "Invalid operator,can only divide with Int or Float",
-                )),
+    impl Display for Object {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match &self {
+                Object::String(s, r) => write!(f, "{}", r.resolve(s)),
+                Object::Integer(i) => write!(f, "{i}"),
+                Object::Float(flt) => write!(f, "{flt}"),
+                Object::Boolean(b) => write!(f, "{b}"),
+                Object::NullValue => write!(f, "null"),
             }
         }
     }

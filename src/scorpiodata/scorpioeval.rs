@@ -1,6 +1,11 @@
 pub mod scorpioeval {
 
-    use crate::Data::{Expr, Object, Statement, TokenType};
+    use anyhow::anyhow;
+
+    use crate::{
+        scorpiodata::Spanned,
+        Data::{Expr, Object, Statement, TokenType},
+    };
 
     //use ariadne::{self, Report, Source, Label};
 
@@ -9,7 +14,6 @@ pub mod scorpioeval {
     //----------------------------------------------------------------
     //-Expr Functions-------------------------------------------------
     //----------------------------------------------------------------
-
 
     fn literal_eval(expr: Expr) -> Object {
         if let Expr::Literal { value } = expr {
@@ -50,33 +54,9 @@ pub mod scorpioeval {
             let lhs = expr_eval(left.0);
             let rhs = expr_eval(right.0);
 
-            match operator.0 {
-                TokenType::Plus => return (lhs + rhs).unwrap(),
-                TokenType::Minus => return (lhs - rhs).unwrap(),
-                TokenType::Times => return (lhs * rhs).unwrap(),
-                TokenType::Div => match lhs / rhs {
-                    Ok(res) => return res,
-                    Err(_) => {
-                        /*
-                        Report::build(ariadne::ReportKind::Error, CACHED_ERROR, operator.1.start)
-                            .with_code(1)
-                            .with_message(format!("{e}"))
-                            .with_label(Label::new((CACHED_ERROR,operator.1.into_range())).with_message("Can't divide by 0!"))
-                            .finish()
-                            .print((CACHED_ERROR, Source::from("prompt"))).unwrap(); */
-                        panic!("Can't divide by 0!")
-                    }
-                },
-                TokenType::Equal => return Object::Boolean(lhs == rhs),
-                TokenType::NotEqual => return Object::Boolean(lhs != rhs),
-                TokenType::GreaterThan => return Object::Boolean(lhs > rhs),
-                TokenType::LessThan => return Object::Boolean(lhs < rhs),
-                TokenType::GreaterThanEqual => return Object::Boolean(lhs >= rhs),
-                TokenType::LessThanEqual => return Object::Boolean(lhs <= rhs),
-                TokenType::And => return Object::Boolean(lhs.into() && rhs.into()),
-                TokenType::Or => return Object::Boolean(lhs.into() || rhs.into()),
-                _ => panic!("Invalid operation!"),
-            }
+            // match operator.0 {
+            // }
+            todo!()
         }
         Object::NullValue
     }
@@ -94,50 +74,92 @@ pub mod scorpioeval {
     //-Stmt Functions-------------------------------------------------
     //----------------------------------------------------------------
 
-    fn if_eval(stmt: Statement) {
-        if let Statement::IfStmt {
-            condition,
-            then_branch,
-            else_branch,
-        } = stmt
-        {
-            if let Object::Boolean(b) = expr_eval(condition.0) {
-                if b {
-                    stmt_eval(then_branch.0)
-                } else if let Some(else_then) = else_branch {
-                    stmt_eval(else_then.0)
-                }
+    fn block_eval(statments: Vec<Spanned<Statement>>) -> anyhow::Result<()> {
+        for statement in statments {
+            stmt_eval(statement.0)?
+        }
+        Ok(())
+    }
+
+    fn if_eval(
+        condition: Expr,
+        then_branch: Statement,
+        else_branch: Option<Box<Spanned<Statement>>>,
+    ) -> anyhow::Result<()> {
+        if let Object::Boolean(b) = expr_eval(condition) {
+            if b {
+                stmt_eval(then_branch)
+            } else if let Some(else_then) = else_branch {
+                stmt_eval(else_then.0)
+            } else {
+                Ok(())
             }
+        } else {
+            Err(anyhow!("Not a Bool!"))
         }
     }
-/* 
-    fn match_eval(stmt: Statement) {
-        if let Statement::MatchStmt { predicate, then_branches } = stmt{
-            let pred_stmt = then_branches.get_key_value(predicate.0);
-            match pred_stmt.0 {
-                Some(s) => stmt_eval(s),
-                None => stmt_eval(then_branches[Pattern::WildCard].0)
-            } 
-        }
-    }*/
 
-    pub fn stmt_eval(stmt: Statement) {
+    // fn match_eval(
+    // predicate: Spanned<Expr>,
+    // then_branches: HashMap<Spanned<Pattern>, Spanned<Statement>>,) {
+    //     if let Statement::MatchStmt {
+    //         predicate,
+    //         then_branches,
+    //     } = stmt
+    //     {
+    //         let pred_stmt = then_branches.get_key_value(predicate.0);
+    //         match pred_stmt.0 {
+    //             Some(s) => stmt_eval(s),
+    //             None => stmt_eval(then_branches[Pattern::WildCard].0),
+    //         }
+    //     }
+    // }
+
+    pub fn while_eval(condition: Expr, then_branch: Statement) -> anyhow::Result<()> {
+        if let Object::Boolean(b) = expr_eval(condition) {
+            while b {
+                stmt_eval(then_branch.clone())?
+            }
+            Ok(())
+        } else {
+            Err(anyhow!("Not a bool!"))
+        }
+    }
+
+    pub fn stmt_eval(stmt: Statement) -> anyhow::Result<()> {
         match stmt {
-            Statement::Error => (),
-            Statement::Block { .. } => todo!(),
-            Statement::Assign { ..} => todo!(),
+            Statement::Error => return Err(anyhow::anyhow!("Error statment!")),
+            Statement::Block { statments } => block_eval(statments)?,
+            Statement::Assign { .. } => todo!(),
             Statement::Expression { .. } => todo!(),
             Statement::Declaration { .. } => todo!(),
             Statement::FuncParameter { .. } => todo!(),
             Statement::FuncDeclaration { .. } => todo!(),
-            Statement::IfStmt { .. } => if_eval(stmt),
-            Statement::MatchStmt { .. } => todo!(),
-            Statement::WhileStmt { .. } => todo!(),
+            Statement::IfStmt {
+                condition,
+                then_branch,
+                else_branch,
+            } => if_eval(condition.get_value(), then_branch.get_value(), else_branch)?,
+            Statement::MatchStmt {
+                predicate,
+                then_branches,
+            } => todo!(),
+            Statement::WhileStmt {
+                condition,
+                then_branch,
+            } => while_eval(condition.0, then_branch.0)?,
             Statement::Defer { .. } => todo!(),
             Statement::Empty => todo!(),
+            Statement::Test(expr) => test_eval(expr)?,
         }
+        Ok(())
     }
 
+    fn test_eval(expr: Expr) -> anyhow::Result<()> {
+        let obj = expr_eval(expr);
+        println!("Test Output:{}", obj.to_string());
+        Ok(())
+    }
     //----------------------------------------------------------------
     //-Misc Functions-------------------------------------------------
     //----------------------------------------------------------------
