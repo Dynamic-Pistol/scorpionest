@@ -3,14 +3,9 @@
 pub mod scorpiodata;
 
 use anyhow;
-use lasso::Rodeo;
 use scorpiodata as Data;
 
 fn main() -> anyhow::Result<()> {
-    let mut rodeo = Rodeo::default();
-    let spur = rodeo.try_get_or_intern("test").unwrap();
-    let s = rodeo.resolve(&spur);
-    println!("{s}");
     let args: Vec<_> = std::env::args().skip(1).collect();
     let input = match args.len() {
         0 => get_prompt(),
@@ -43,17 +38,9 @@ fn get_prompt() -> String {
 }
 
 fn run<'a>(input: &str) -> anyhow::Result<()> {
-    // Report::build(ariadne::ReportKind::Error, "test.scorp", 12)
-    //     .with_code(3)
-    //     .with_message(format!("Invalid error!"))
-    //     .with_label(Label::new(1..2));
-    let mut new_rodeo = Rodeo::default();
-    let items = Data::NeededItems::<'a> {
-        rodeo: &mut new_rodeo,
-    };
     let tokens = Data::scan(input)?;
     let stream = Data::get_stream((tokens, input));
-    let stmt = Data::parse(stream, items);
-    // Data::stmt_eval(stmt.clone())?;
+    let stmt = Data::parse(stream);
+    Data::stmt_eval(stmt)?;
     return Ok(());
 }

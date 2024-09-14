@@ -98,14 +98,14 @@ pub mod scorpiostatments {
         },
         MatchStmt {
             predicate: Box<Spanned<Expr>>,
-            then_branches: HashMap<Spanned<Pattern>, Spanned<Statement<'a>>>,
+            then_branches: HashMap<Spanned<Pattern>, Spanned<Statement>>,
         },
         WhileStmt {
             condition: Box<Spanned<Expr>>,
-            then_branch: Box<Spanned<Statement<'a>>>,
+            then_branch: Box<Spanned<Statement>>,
         },
         Defer {
-            defered_statment: Box<Spanned<Statement<'a>>>,
+            defered_statment: Box<Spanned<Statement>>,
         },
     }
 }
@@ -129,10 +129,10 @@ pub mod scorpiopatterns {
                 if let Object::Integer(i) = value.0 {
                     return Ok(Pattern::IntLiteral(i));
                 } else {
-                    return Err(());
+                    return Err(anyhow::anyhow!("Can't convert!"));
                 }
             }
-            return Err(());
+            return Err(anyhow::anyhow!("Can't convert!"));
         }
     }
 }

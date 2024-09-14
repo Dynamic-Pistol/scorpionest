@@ -3,7 +3,7 @@ pub mod scorplexer {
     use chumsky::span::SimpleSpan;
     use logos::Logos;
     #[derive(Logos, Debug, Clone, PartialEq)]
-    #[logos(skip r"[\r\n\t ]+", error = LexingErrorKind)]
+    #[logos(skip r"[\r\n\t ]+", skip r"//[^\n]*", error = LexingErrorKind)]
     pub enum TokenType {
         #[token("test")]
         Test,
@@ -153,8 +153,6 @@ pub mod scorplexer {
         False,
         #[token("null")]
         Null,
-        #[regex(r"//[^\n]*", logos::skip)]
-        Comment,
         #[end]
         EOF,
     }
