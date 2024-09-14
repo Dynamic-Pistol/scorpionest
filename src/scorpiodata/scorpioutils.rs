@@ -4,12 +4,13 @@ pub mod scorputils {
 
     use chumsky::span::{SimpleSpan, Span};
     use lasso::{Rodeo, RodeoResolver, Spur};
+    use once_cell::sync::Lazy;
 
-    #[derive(Debug)]
-    pub struct NeededItems<'a> {
-        pub rodeo: &'a mut Rodeo,
+    pub static INTERNER: Lazy<Rodeo> = Lazy::new(Rodeo::new);
+
+    pub fn resolve_symbol(key: Spur) -> &'static str {
+        INTERNER.resolve(&key)
     }
-
     #[derive(Debug, PartialEq, Eq, Hash)]
     pub struct Spanned<T>(pub T, pub SimpleSpan);
 
@@ -62,18 +63,18 @@ pub mod scorputils {
     }
 
     #[derive(Debug, Clone, Copy)]
-    pub enum Object<'a> {
-        String(Spur, &'a RodeoResolver),
+    pub enum Object {
+        String(Spur),
         Integer(i32),
         Float(f32),
         Boolean(bool),
         NullValue,
     }
 
-    impl<'a> Display for Object<'a> {
+    impl<'a> Display for Object {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match &self {
-                Object::String(s, r) => write!(f, "{}", r.resolve(s)),
+                Object::String(s) => write!(f, "{}", r.resolve(s)),
                 Object::Integer(i) => write!(f, "{i}"),
                 Object::Float(flt) => write!(f, "{flt}"),
                 Object::Boolean(b) => write!(f, "{b}"),
@@ -82,7 +83,7 @@ pub mod scorputils {
         }
     }
 
-    impl<'a> Into<bool> for Object<'a> {
+    impl<'a> Into<bool> for Object {
         fn into(self) -> bool {
             if let Object::Boolean(b) = self {
                 return b;

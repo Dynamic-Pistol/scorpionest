@@ -217,9 +217,7 @@ pub mod scorpparser {
     //-Statment Parsing-----------------------------------------------
     //----------------------------------------------------------------
 
-    fn stmt_parser<'a, I: TokenInput<'a>>(
-        items: Data::NeededItems,
-    ) -> impl TokenParser<'a, I, Statement> {
+    fn stmt_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Statement> {
         recursive(|f| {
             let expr = recursive_expr_parser(items);
             choice((
