@@ -1,9 +1,15 @@
 #![feature(trait_alias)]
 
-pub mod scorpiodata;
+mod ast;
+mod interperter;
+mod lexer;
+mod parser;
+mod utils;
 
 use anyhow;
-use scorpiodata as Data;
+use interperter::interperter::stmt_eval;
+use lexer::lexer::scan;
+use parser::parser::{get_stream, parse};
 
 fn main() -> anyhow::Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();
@@ -38,9 +44,9 @@ fn get_prompt() -> String {
 }
 
 fn run<'a>(input: &str) -> anyhow::Result<()> {
-    let tokens = Data::scan(input)?;
-    let stream = Data::get_stream((tokens, input));
-    let stmt = Data::parse(stream);
-    Data::stmt_eval(stmt)?;
+    let tokens = scan(input)?;
+    let stream = get_stream((tokens, input));
+    let stmt = parse(stream);
+    stmt_eval(stmt)?;
     return Ok(());
 }
