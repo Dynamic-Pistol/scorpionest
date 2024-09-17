@@ -506,7 +506,7 @@ pub mod scorpparser {
             .spanned::<_, chumsky::span::SimpleSpan>((input.len()..input.len()).into())
     }
 
-    fn var_ident<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Spanned<String>> {
+    fn var_ident<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Spanned<u64>> {
         select! {
             TokenType::Identifier(i) = e => Spanned(i, e.span())
         }

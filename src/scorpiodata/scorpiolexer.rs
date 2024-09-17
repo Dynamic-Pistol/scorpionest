@@ -1,5 +1,7 @@
 pub mod scorplexer {
 
+    use std::hash::{DefaultHasher, Hash, Hasher};
+
     use chumsky::span::SimpleSpan;
     use logos::Logos;
     #[derive(Logos, Debug, Clone, PartialEq)]
@@ -137,8 +139,8 @@ pub mod scorplexer {
         AttributeStart,
         #[token("_")]
         WildCard,
-        #[regex(r"([a-zA-Z])?[a-zA-Z0-9_]*", |lex| lex.slice().parse().ok())]
-        Identifier(String),
+        #[regex(r"([a-zA-Z])?[a-zA-Z0-9_]*", |lex| lex.slice().parse().ok().map(|s: String| convert_to_hash(&s)))]
+        Identifier(u64),
         #[regex(r"[0-9]+", |lex| lex.slice().parse().ok())]
         Number(i32),
         #[regex(r"[0-9]+\.[0-9]+", |lex| lex.slice().parse().ok())]
@@ -168,6 +170,12 @@ pub mod scorplexer {
             }
         }
         Ok(tokens)
+    }
+
+    fn convert_to_hash<T: Hash>(t: &T) -> u64 {
+        let mut hasher = DefaultHasher::default();
+        t.hash(&mut hasher);
+        hasher.finish()
     }
 
     #[derive(Debug, PartialEq, Clone, Default, thiserror::Error)]

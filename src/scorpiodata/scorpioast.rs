@@ -17,7 +17,7 @@ pub mod scorpexpressions {
             right: Box<Spanned<Expr>>,
         },
         Variable {
-            name: Spanned<String>,
+            name: Spanned<u64>,
         },
         TenaryIfStmt {
             condition: Box<Spanned<Expr>>,
@@ -25,7 +25,7 @@ pub mod scorpexpressions {
             else_value: Box<Spanned<Expr>>,
         },
         FunctionCall {
-            func_name: Box<Spanned<String>>,
+            func_name: Box<Spanned<u64>>,
             arguments: Option<Vec<Expr>>,
         },
     }
@@ -63,7 +63,7 @@ pub mod scorpiostatments {
         Empty,
         Test(Expr),
         Assign {
-            name: Spanned<String>,
+            name: Spanned<u64>,
             operator: Spanned<TokenType>,
             value: Box<Spanned<Expr>>,
         },
@@ -75,18 +75,18 @@ pub mod scorpiostatments {
         },
         Declaration {
             declaration_type: DeclarationType,
-            name: Spanned<String>,
+            name: Spanned<u64>,
             manual_type: Option<Spanned<Type>>,
             value: Box<Spanned<Expr>>,
         },
         FuncParameter {
             param_type: Box<Spanned<ParamType>>,
-            param_value_name: Box<Spanned<String>>,
+            param_value_name: Box<Spanned<u64>>,
             param_restrictor: Option<Spanned<ParamRestrictor>>,
             param_value_type: Box<Spanned<Type>>,
         },
         FuncDeclaration {
-            name: Spanned<String>,
+            name: Spanned<u64>,
             parameters: Vec<Statement>,
             return_type: Option<Spanned<Type>>,
             statments: Vec<Spanned<Statement>>,
