@@ -1,13 +1,16 @@
 use std::collections::HashMap;
 
 use chumsky::prelude::*;
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 
 use crate::{
     ast::{
-        expr::Expr,
-        misc::{DeclarationType, ParamRestrictor, ParamType},
+        expr::{Binary, Expr, Literal, Unary},
+        misc::{
+            AssignOp, BinaryOp, DeclarationType, FuncParameter, ParamRestrictor, ParamType, UnaryOp,
+        },
         pattern::Pattern,
-        stmt::Statement,
+        stmt::{Assign, MatchStmt, Statement},
     },
     lexer::token::TokenType,
     utils::{
@@ -70,36 +73,42 @@ where
     let unary = unary_parser(recursive_parser).map_with(|ident, e| Spanned(ident, e.span()));
 
     let product = unary.clone().foldl(
-        choice((just(TokenType::Times), just(TokenType::Div)))
-            .map_with(|ident, e| Spanned(ident, e.span()))
-            .then(unary)
-            .repeated(),
+        choice((
+            just(TokenType::Times).to(BinaryOp::Mul),
+            just(TokenType::Div).to(BinaryOp::Div),
+        ))
+        .map_with(|ident, e| Spanned(ident, e.span()))
+        .then(unary)
+        .repeated(),
         |lhs, (op, rhs)| {
             let span: SimpleSpan = (lhs.1.start()..rhs.1.end()).into();
             Spanned(
-                Expr::Binary {
+                Expr::Binary(Binary {
                     left: Box::new(lhs),
                     operator: op,
                     right: Box::new(rhs),
-                },
+                }),
                 span,
             )
         },
     );
 
     let sum = product.clone().foldl(
-        choice((just(TokenType::Plus), just(TokenType::Minus)))
-            .map_with(|ident, e| Spanned(ident, e.span()))
-            .then(product)
-            .repeated(),
+        choice((
+            just(TokenType::Plus).to(BinaryOp::Add),
+            just(TokenType::Minus).to(BinaryOp::Sub),
+        ))
+        .map_with(|ident, e| Spanned(ident, e.span()))
+        .then(product)
+        .repeated(),
         |lhs, (op, rhs)| {
             let span: SimpleSpan = concat_span(lhs.1, rhs.1);
             Spanned(
-                Expr::Binary {
+                Expr::Binary(Binary {
                     left: Box::new(lhs),
                     operator: op,
                     right: Box::new(rhs),
-                },
+                }),
                 span,
             )
         },
@@ -107,14 +116,14 @@ where
 
     let cond = sum.clone().foldl(
         choice((
-            just(TokenType::GreaterThan),
-            just(TokenType::GreaterThanEqual),
-            just(TokenType::LessThan),
-            just(TokenType::LessThanEqual),
-            just(TokenType::Equal),
-            just(TokenType::NotEqual),
-            just(TokenType::And),
-            just(TokenType::Or),
+            just(TokenType::GreaterThan).to(BinaryOp::GreaterThan),
+            just(TokenType::GreaterThanEqual).to(BinaryOp::GreaterThanEqual),
+            just(TokenType::LessThan).to(BinaryOp::LessThan),
+            just(TokenType::LessThanEqual).to(BinaryOp::LessThanEqual),
+            just(TokenType::Equal).to(BinaryOp::Equal),
+            just(TokenType::NotEqual).to(BinaryOp::NotEqual),
+            just(TokenType::And).to(BinaryOp::And),
+            just(TokenType::Or).to(BinaryOp::Or),
         ))
         .map_with(|ident, e| Spanned(ident, e.span()))
         .then(sum)
@@ -122,11 +131,11 @@ where
         |lhs, (op, rhs)| {
             let span: SimpleSpan = concat_span(lhs.1, rhs.1);
             Spanned(
-                Expr::Binary {
+                Expr::Binary(Binary {
                     left: Box::new(lhs),
                     operator: op,
                     right: Box::new(rhs),
-                },
+                }),
                 span,
             )
         },
@@ -138,23 +147,26 @@ fn unary_parser<'a, EP, I: TokenInput<'a>>(expr_parser: EP) -> impl TokenParser<
 where
     EP: TokenParser<'a, I, Expr>,
 {
-    choice((just(TokenType::Not), just(TokenType::Minus)))
-        .map_with(|ident, e| Spanned(ident, e.span()))
-        .repeated()
-        .foldr(
-            atom_parser(expr_parser).map_with(|ident, e| Spanned(ident, e.span())),
-            |op, literal| {
-                let span: SimpleSpan = concat_span(op.1, literal.1);
-                Spanned(
-                    Expr::Unary {
-                        operator: op,
-                        right: Box::new(literal),
-                    },
-                    span,
-                )
-            },
-        )
-        .map(|spanned_expr| spanned_expr.0)
+    choice((
+        just(TokenType::Not).to(UnaryOp::Not),
+        just(TokenType::Minus).to(UnaryOp::Neg),
+    ))
+    .map_with(|ident, e| Spanned(ident, e.span()))
+    .repeated()
+    .foldr(
+        atom_parser(expr_parser).map_with(|ident, e| Spanned(ident, e.span())),
+        |op, literal| {
+            let span: SimpleSpan = concat_span(op.1, literal.1);
+            Spanned(
+                Expr::Unary(Unary {
+                    operator: op,
+                    right: Box::new(literal),
+                }),
+                span,
+            )
+        },
+    )
+    .map(|spanned_expr| spanned_expr.0)
 }
 
 fn atom_parser<'a, EP, I: TokenInput<'a>>(expr_parser: EP) -> impl TokenParser<'a, I, Expr>
@@ -163,16 +175,16 @@ where
 {
     choice((
         select! {
-           TokenType::True = e => Expr::Literal { value: Spanned(Object::Boolean(true), e.span()) },
-           TokenType::False = e => Expr::Literal { value: Spanned(Object::Boolean(false),e.span()) },
-           TokenType::Null = e => Expr::Literal { value: Spanned(Object::NullValue,e.span()) },
-           TokenType::StringLiteral(s) = e => Expr::Literal {
-            value: Spanned(Object::String(INTERNER.get_or_intern(s)),e.span())
-            },
-           TokenType::CharLiteral(c) = e => Expr::Literal { value: Spanned(Object::Integer(c as i32),e.span()) },
-           TokenType::Number(i) = e => Expr::Literal { value: Spanned(Object::Integer(i),e.span()) },
-           TokenType::FloatingNumber(f) = e => Expr::Literal { value: Spanned(Object::Float(f),e.span()) },
-           TokenType::Identifier(i) = e => Expr::Variable { name: Spanned(i, e.span()) }
+               TokenType::True = e => Expr::Literal(Literal { value: Spanned(Object::Boolean(true), e.span()) }),
+               TokenType::False = e => Expr::Literal(Literal { value: Spanned(Object::Boolean(false),e.span()) }),
+               TokenType::Null = e =>Expr::Literal( Literal { value: Spanned(Object::NullValue,e.span()) }),
+               TokenType::StringLiteral(s) = e =>Expr::Literal( Literal {
+                value: Spanned(Object::String(INTERNER.get_or_intern(s)),e.span())
+                }),
+               TokenType::CharLiteral(c) = e => Expr::Literal(Literal { value: Spanned(Object::Integer(c as i32),e.span()) }),
+               TokenType::Number(i) = e => Expr::Literal(Literal { value: Spanned(Object::Integer(i),e.span()) }),
+               TokenType::FloatingNumber(f) = e => Expr::Literal(Literal { value: Spanned(Object::Float(Decimal::from_f32(f).unwrap()),e.span()) },),
+               TokenType::Identifier(i) = e => Expr::Variable { name: Spanned(i, e.span()) }
         },
         expr_parser.clone().delimited_by(
             just(TokenType::LeftParenthesis),
@@ -247,19 +259,21 @@ where
     group((
         var_ident(),
         choice((
-            just(TokenType::Assign),
-            just(TokenType::PlusAssign),
-            just(TokenType::MinusAssign),
-            just(TokenType::TimesAssign),
-            just(TokenType::DivAssign),
+            just(TokenType::Assign).to(AssignOp::Set),
+            just(TokenType::PlusAssign).to(AssignOp::Add),
+            just(TokenType::MinusAssign).to(AssignOp::Sub),
+            just(TokenType::TimesAssign).to(AssignOp::Mul),
+            just(TokenType::DivAssign).to(AssignOp::Div),
         ))
         .map_with(|ident, e| Spanned(ident, e.span())),
         expr_parser.map_with(|ident, e| Spanned(ident, e.span())),
     ))
-    .map(|(var, op, expr)| Statement::Assign {
-        name: var,
-        operator: op,
-        value: Box::new(expr),
+    .map(|(var, op, expr)| {
+        Statement::Assign(Assign {
+            name: var,
+            operator: op,
+            value: Box::new(expr),
+        })
     })
 }
 
@@ -375,21 +389,20 @@ where
         .ignore_then(expr_parser.map_with(|ident, e| Spanned(ident, e.span())))
         .then(
             group((
-                recursive_pat_parser()
-                    .map_with(|ident, e| Spanned(ident, e.span()))
-                    .then_ignore(just(TokenType::FatArrow)),
-                stmt_parser
-                    .clone()
-                    .map_with(|ident, e| Spanned(ident, e.span())),
+                recursive_pat_parser().then_ignore(just(TokenType::FatArrow)),
+                stmt_parser.clone(),
             ))
             .separated_by(just(TokenType::Comma))
             .allow_trailing()
-            .collect::<HashMap<_, _>>()
-            .delimited_by(just(TokenType::LeftBracket), just(TokenType::RightBracket)),
+            .collect::<Vec<(_, _)>>()
+            .delimited_by(just(TokenType::LeftBracket), just(TokenType::RightBracket))
+            .map_with(|ident, e| Spanned(ident, e.span())),
         )
-        .map(|expr| Statement::MatchStmt {
-            predicate: Box::new(expr.0),
-            then_branches: expr.1,
+        .map(|(pred, thens)| {
+            Statement::MatchStmt(MatchStmt {
+                predicate: Box::new(pred),
+                then_branches: thens,
+            })
         })
 }
 
@@ -415,7 +428,7 @@ where
         })
 }
 
-fn func_params_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Statement> {
+fn func_params_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, FuncParameter> {
     choice((
         just(TokenType::Ref).to(ParamType::Reference),
         just(TokenType::Val).to(ParamType::Value),
@@ -435,7 +448,7 @@ fn func_params_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Statem
     )
     .then(type_ident())
     .map(
-        |(((pm_type, pm_name), pm_rest), pm_type_name)| Statement::FuncParameter {
+        |(((pm_type, pm_name), pm_rest), pm_type_name)| FuncParameter {
             param_type: Box::new(pm_type.map_into::<ParamType>()),
             param_value_name: Box::new(pm_name),
             param_restrictor: pm_rest,
@@ -454,6 +467,7 @@ where
             func_params_parser()
                 .separated_by(just(TokenType::Comma))
                 .collect::<Vec<_>>()
+                .or_not()
                 .delimited_by(
                     just(TokenType::LeftParenthesis),
                     just(TokenType::RightParenthesis),
@@ -464,6 +478,7 @@ where
             stmt_parser
                 .map_with(|ident, e| Spanned(ident, e.span()))
                 .repeated()
+                .at_least(1)
                 .collect::<Vec<_>>()
                 .delimited_by(just(TokenType::LeftBracket), just(TokenType::RightBracket)),
         )
@@ -488,8 +503,8 @@ fn recursive_pat_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Patt
 fn atom_pattern_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Pattern> {
     select! {
         TokenType::WildCard => Pattern::WildCard,
-        TokenType::Number(i) => Pattern::IntLiteral(i),
-        TokenType::Identifier(i) => Pattern::TypeName(Type::Ident(i)),
+        TokenType::Number(i) = e => Pattern::Literal(Literal{ value: Spanned(Object::Integer(i), e.span())}),
+        TokenType::Identifier(i) => Pattern::TypeName(Type(i)),
     }
 }
 
@@ -513,7 +528,7 @@ fn var_ident<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Spanned<u64>> {
 
 fn type_ident<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Spanned<Type>> {
     select! {
-        TokenType::Identifier(i) = e => Spanned(Type::Ident(i), e.span())
+        TokenType::Identifier(i) = e => Spanned(Type(i), e.span())
     }
 }
 

@@ -1,14 +1,15 @@
 use anyhow::anyhow;
+use rust_decimal::Decimal;
 use std::{fmt::Display, ops};
 
 use lasso::Spur;
 
 use super::interner::INTERNER;
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub enum Object {
     String(Spur),
     Integer(i32),
-    Float(f32),
+    Float(Decimal),
     Boolean(bool),
     NullValue,
 }
@@ -39,7 +40,7 @@ impl ops::Add for Object {
             }
             (Object::Integer(i1), Object::Integer(i2)) => Ok(Object::Integer(i1 + i2)),
             (Object::Integer(i), Object::Float(f)) | (Object::Float(f), Object::Integer(i)) => {
-                Ok(Object::Float(f + i as f32))
+                Ok(Object::Float(f + Decimal::from(i)))
             }
             (Object::Float(f1), Object::Float(f2)) => Ok(Object::Float(f1 + f2)),
             _ => Err(anyhow!("Invalid operation arguments!")),
@@ -54,7 +55,7 @@ impl ops::Sub for Object {
         match (self, rhs) {
             (Object::Integer(i1), Object::Integer(i2)) => Ok(Object::Integer(i1 - i2)),
             (Object::Integer(i), Object::Float(f)) | (Object::Float(f), Object::Integer(i)) => {
-                Ok(Object::Float(f - i as f32))
+                Ok(Object::Float(f - Decimal::from(i)))
             }
             (Object::Float(f1), Object::Float(f2)) => Ok(Object::Float(f1 - f2)),
             _ => Err(anyhow!("Invalid operation arguments!")),
@@ -69,7 +70,7 @@ impl ops::Mul for Object {
         match (self, rhs) {
             (Object::Integer(i1), Object::Integer(i2)) => Ok(Object::Integer(i1 * i2)),
             (Object::Integer(i), Object::Float(f)) | (Object::Float(f), Object::Integer(i)) => {
-                Ok(Object::Float(f * i as f32))
+                Ok(Object::Float(f * Decimal::from(i)))
             }
             (Object::Float(f1), Object::Float(f2)) => Ok(Object::Float(f1 * f2)),
             _ => Err(anyhow!("Invalid operation arguments!")),
@@ -85,7 +86,7 @@ impl ops::Div for Object {
                 Ok(Object::Integer(i1.checked_div(i2).unwrap_or(0)))
             }
             (Object::Integer(i), Object::Float(f)) | (Object::Float(f), Object::Integer(i)) => {
-                Ok(Object::Float(f / i as f32))
+                Ok(Object::Float(f / Decimal::from(i)))
             }
             (Object::Float(f1), Object::Float(f2)) => Ok(Object::Float(f1 / f2)),
             _ => Err(anyhow!("Invalid operation arguments!")),

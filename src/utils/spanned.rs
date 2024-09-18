@@ -1,9 +1,17 @@
+use std::hash::Hash;
+
 use chumsky::span::{SimpleSpan, Span};
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Spanned<T>(pub T, pub SimpleSpan);
 
 impl<T: Copy> Copy for Spanned<T> {}
+
+impl<T: Hash> Hash for Spanned<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
 
 impl<T: Clone> Clone for Spanned<T> {
     fn clone(&self) -> Self {
@@ -33,8 +41,8 @@ impl<T> Spanned<T> {
         Spanned(self.0.into(), self.1)
     }
 
-    pub fn get_value(self) -> T {
-        self.0
+    pub fn get_value(&self) -> &T {
+        &self.0
     }
 }
 

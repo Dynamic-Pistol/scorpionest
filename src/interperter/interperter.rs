@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 
 use crate::{
-    ast::{expr::Expr, stmt::Statement},
+    ast::{
+        expr::{Binary, Expr, Literal, Unary},
+        pattern::Pattern,
+        stmt::{Assign, MatchStmt, Statement},
+    },
     lexer::token::TokenType,
     utils::{object::Object, spanned::Spanned},
 };
@@ -22,46 +26,43 @@ impl Default for Interperter {
     }
 }
 impl Interperter {
-    pub fn unary_eval(&mut self, operator: TokenType, right: Expr) -> anyhow::Result<Object> {
-        let value = self.expr_eval(right)?;
-        match operator {
-            TokenType::Minus => match value {
+    pub fn unary_eval(&mut self, unary: Unary) -> anyhow::Result<Object> {
+        let value = self.expr_eval(unary.right.0)?;
+        use crate::ast::misc::UnaryOp::*;
+        match unary.operator.0 {
+            Not => match value {
                 Object::Integer(i) => return Ok(Object::Integer(-i)),
                 Object::Float(f) => return Ok(Object::Float(-f)),
                 _ => return Err(anyhow::anyhow!("Invalid value type!")),
             },
-            TokenType::Not => {
+            Neg => {
                 if let Object::Boolean(b) = value {
                     return Ok(Object::Boolean(!b));
                 } else {
                     return Err(anyhow::anyhow!("Invalid value type!"));
                 }
             }
-            _ => panic!("Invalid token type!"),
         }
     }
 
-    pub fn binary_eval(
-        &mut self,
-        left: Expr,
-        operator: TokenType,
-        right: Expr,
-    ) -> anyhow::Result<Object> {
-        let lhs = self.expr_eval(left)?;
-        let rhs = self.expr_eval(right)?;
+    pub fn binary_eval(&mut self, binary: Binary) -> anyhow::Result<Object> {
+        let lhs = self.expr_eval(binary.left.0)?;
+        let rhs = self.expr_eval(binary.right.0)?;
 
-        match operator {
-            TokenType::Plus => lhs + rhs,
-            TokenType::Minus => lhs - rhs,
-            TokenType::Times => lhs * rhs,
-            TokenType::Div => lhs / rhs,
-            TokenType::Equal => Ok(Object::Boolean(lhs == rhs)),
-            TokenType::NotEqual => Ok(Object::Boolean(lhs != rhs)),
-            TokenType::GreaterThan => Ok(Object::Boolean(lhs > rhs)),
-            TokenType::LessThan => Ok(Object::Boolean(lhs < rhs)),
-            TokenType::GreaterThanEqual => Ok(Object::Boolean(lhs >= rhs)),
-            TokenType::LessThanEqual => Ok(Object::Boolean(lhs <= rhs)),
-            _ => todo!(),
+        use crate::ast::misc::BinaryOp::*;
+        match binary.operator.0 {
+            Add => lhs + rhs,
+            Sub => lhs - rhs,
+            Mul => lhs * rhs,
+            Div => lhs / rhs,
+            GreaterThan => Ok(Object::Boolean(lhs > rhs)),
+            GreaterThanEqual => Ok(Object::Boolean(lhs >= rhs)),
+            LessThan => Ok(Object::Boolean(lhs < rhs)),
+            LessThanEqual => Ok(Object::Boolean(lhs <= rhs)),
+            Equal => Ok(Object::Boolean(lhs == rhs)),
+            NotEqual => Ok(Object::Boolean(lhs != rhs)),
+            And => Ok(Object::Boolean(lhs.into() && rhs.into())),
+            Or => Ok(Object::Boolean(lhs.into() || rhs.into())),
         }
     }
 
@@ -72,26 +73,31 @@ impl Interperter {
         }
     }
 
+    fn tenary_if_eval(
+        &mut self,
+        condition: Expr,
+        value: Expr,
+        else_value: Expr,
+    ) -> anyhow::Result<Object> {
+        return if self.expr_eval(condition)?.into() {
+            self.expr_eval(value)
+        } else {
+            self.expr_eval(else_value)
+        };
+    }
+
     pub fn expr_eval(&mut self, expr: Expr) -> anyhow::Result<Object> {
         match expr {
-            Expr::Binary {
-                left,
-                operator,
-                right,
-            } => self.binary_eval(left.0, operator.0, right.0),
-            Expr::Literal { value } => Ok(value.0),
-            Expr::Unary { operator, right } => self.unary_eval(operator.0, right.0),
-            Expr::Error => todo!(),
+            Expr::Binary(b) => self.binary_eval(b),
+            Expr::Literal(l) => Ok(l.value.0),
+            Expr::Unary(u) => self.unary_eval(u),
             Expr::Variable { name } => self.var_eval(name.0),
             Expr::TenaryIfStmt {
                 condition,
                 value,
                 else_value,
-            } => todo!(),
-            Expr::FunctionCall {
-                func_name,
-                arguments,
-            } => todo!(),
+            } => self.tenary_if_eval(condition.0, value.0, else_value.0),
+            Expr::FunctionCall { .. } => todo!(),
         }
     }
 
@@ -106,22 +112,22 @@ impl Interperter {
         Ok(())
     }
 
-    fn assign_eval(&mut self, name: u64, operator: TokenType, value: Expr) -> anyhow::Result<()> {
-        let val = self.expr_eval(value)?; //Only is at top due to error about "Borrowing"
-        let mut var = match self.vars.get_mut(&name) {
+    fn assign_eval(&mut self, assign: Assign) -> anyhow::Result<()> {
+        let val = self.expr_eval(assign.value.0)?; //Only is at top due to error about "Borrowing"
+        let var = match self.vars.get_mut(&assign.name.0) {
             Some(o) => o,
             None => return Err(anyhow::anyhow!("Variable doesn't exist!")),
         };
         if !var.1 {
             return Err(anyhow::anyhow!("Variable is immutable!"));
         }
-        match operator {
-            TokenType::PlusAssign => var.0 = (var.0 + val)?,
-            TokenType::MinusAssign => var.0 = (var.0 - val)?,
-            TokenType::TimesAssign => var.0 = (var.0 * val)?,
-            TokenType::DivAssign => var.0 = (var.0 / val)?,
-            TokenType::Assign => var.0 = val,
-            _ => unreachable!(),
+        use crate::ast::misc::AssignOp::*;
+        match assign.operator.0 {
+            Add => var.0 = (var.0 + val)?,
+            Sub => var.0 = (var.0 - val)?,
+            Mul => var.0 = (var.0 * val)?,
+            Div => var.0 = (var.0 / val)?,
+            Set => var.0 = val,
         }
         Ok(())
     }
@@ -164,21 +170,20 @@ impl Interperter {
         }
     }
 
-    //     // fn match_eval(
-    //     // predicate: Spanned<Expr>,
-    //     // then_branches: HashMap<Spanned<Pattern>, Spanned<Statement>>,) {
-    //     //     if let Statement::MatchStmt {
-    //     //         predicate,
-    //     //         then_branches,
-    //     //     } = stmt
-    //     //     {
-    //     //         let pred_stmt = then_branches.get_key_value(predicate.0);
-    //     //         match pred_stmt.0 {
-    //     //             Some(s) => stmt_eval(s),
-    //     //             None => stmt_eval(then_branches[Pattern::WildCard].0),
-    //     //         }
-    //     //     }
-    //     // }
+    fn match_eval(&mut self, match_stmt: MatchStmt) -> anyhow::Result<()> {
+        let p_k = self.expr_eval(match_stmt.predicate.0)?; //Possible key
+        let mut found = false;
+        for key_value_pair in match_stmt.then_branches.0 {
+            if let Pattern::Literal(lp) = key_value_pair.0 {
+                if lp.value.0 == p_k {
+                    self.stmt_eval(key_value_pair.1)?;
+                    found = true;
+                    break;
+                }
+            }
+        }
+        Ok(())
+    }
 
     pub fn while_eval(&mut self, condition: Expr, then_branch: Statement) -> anyhow::Result<()> {
         if let Object::Boolean(b) = self.expr_eval(condition)? {
@@ -195,11 +200,7 @@ impl Interperter {
         match stmt {
             Statement::Error => return Err(anyhow::anyhow!("Error statment!")),
             Statement::Block { statments } => self.block_eval(statments)?,
-            Statement::Assign {
-                name,
-                operator,
-                value,
-            } => self.assign_eval(name.0, operator.0, value.0)?,
+            Statement::Assign(a) => self.assign_eval(a)?,
             Statement::Expression { .. } => todo!(),
             Statement::Declaration {
                 declaration_type,
@@ -207,14 +208,13 @@ impl Interperter {
                 manual_type,
                 value,
             } => self.declar_eval(declaration_type, name.0, manual_type, value)?,
-            Statement::FuncParameter { .. } => todo!(),
             Statement::FuncDeclaration { .. } => todo!(),
             Statement::IfStmt {
                 condition,
                 then_branch,
                 else_branch,
-            } => self.if_eval(condition.get_value(), then_branch.get_value(), else_branch)?,
-            Statement::MatchStmt { .. } => todo!(),
+            } => self.if_eval(condition.0, then_branch.0, else_branch)?,
+            Statement::MatchStmt(match_stmt) => self.match_eval(match_stmt)?,
             Statement::WhileStmt {
                 condition,
                 then_branch,

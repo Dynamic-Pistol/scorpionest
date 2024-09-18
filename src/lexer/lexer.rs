@@ -1,4 +1,7 @@
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::{
+    hash::{DefaultHasher, Hash, Hasher},
+    num::ParseIntError,
+};
 
 use chumsky::span::SimpleSpan;
 use logos::Logos;
@@ -26,12 +29,8 @@ pub fn convert_to_hash<T: Hash>(t: &T) -> u64 {
 
 #[derive(Debug, PartialEq, Clone, Default, thiserror::Error)]
 pub enum LexingErrorKind {
-    #[error("Int overflowed")]
-    IntOverflowError,
-    #[error("Zero or empty int")]
-    IntZeroOrEmptyError,
-    #[error("Invalid parsing")]
-    InvalidParseError,
+    #[error("Int parsing error")]
+    IntError(#[from] ParseIntError),
     #[error("Unknown or not implemented yet error!")]
     #[default]
     Other,

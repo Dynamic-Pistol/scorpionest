@@ -21,7 +21,7 @@ pub enum TokenType {
     Defer,
     #[token("case")]
     Case,
-    #[token("bitpack")]
+    #[token("bitset")]
     BitPack,
     #[token("fn")]
     Function,
@@ -69,8 +69,6 @@ pub enum TokenType {
     Const,
     #[token("mut")]
     Mutable,
-    #[token("Params")]
-    Params,
     #[token("extern")]
     Extern,
     #[token("use")]

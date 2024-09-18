@@ -1,23 +1,30 @@
-use crate::{
-    lexer::token::TokenType,
-    utils::{object::Object, spanned::Spanned},
-};
+use crate::utils::{object::Object, spanned::Spanned};
 
-#[derive(Debug, Clone)]
+use super::misc::{BinaryOp, UnaryOp};
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Binary {
+    pub left: Box<Spanned<Expr>>,
+    pub operator: Spanned<BinaryOp>,
+    pub right: Box<Spanned<Expr>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Unary {
+    pub operator: Spanned<UnaryOp>,
+    pub right: Box<Spanned<Expr>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Literal {
+    pub value: Spanned<Object>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
-    Error,
-    Binary {
-        left: Box<Spanned<Expr>>,
-        operator: Spanned<TokenType>,
-        right: Box<Spanned<Expr>>,
-    },
-    Literal {
-        value: Spanned<Object>,
-    },
-    Unary {
-        operator: Spanned<TokenType>,
-        right: Box<Spanned<Expr>>,
-    },
+    Binary(Binary),
+    Unary(Unary),
+    Literal(Literal),
     Variable {
         name: Spanned<u64>,
     },

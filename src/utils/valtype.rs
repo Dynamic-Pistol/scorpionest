@@ -1,6 +1,2 @@
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Type {
-    Ident(u64),
-    Generic(Box<Type>, Vec<Type>),
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Type(pub u64);
