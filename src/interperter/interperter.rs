@@ -186,9 +186,10 @@ impl Interperter {
     }
 
     pub fn while_eval(&mut self, condition: Expr, then_branch: Statement) -> anyhow::Result<()> {
-        if let Object::Boolean(b) = self.expr_eval(condition)? {
+        if let Object::Boolean(mut b) = self.expr_eval(condition.clone())? {
             while b {
-                self.stmt_eval(then_branch.clone())?
+                self.stmt_eval(then_branch.clone())?;
+                b = self.expr_eval(condition.to_owned())?.into();
             }
             Ok(())
         } else {
