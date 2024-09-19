@@ -30,12 +30,12 @@ impl Interperter {
         let value = self.expr_eval(unary.right.0)?;
         use crate::ast::misc::UnaryOp::*;
         match unary.operator.0 {
-            Not => match value {
+            Neg => match value {
                 Object::Integer(i) => return Ok(Object::Integer(-i)),
                 Object::Float(f) => return Ok(Object::Float(-f)),
                 _ => return Err(anyhow::anyhow!("Invalid value type!")),
             },
-            Neg => {
+            Not => {
                 if let Object::Boolean(b) = value {
                     return Ok(Object::Boolean(!b));
                 } else {
