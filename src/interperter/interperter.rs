@@ -14,7 +14,9 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Interpreter {
     vars: HashMap<u64, (Object, bool)>,
-    defered_stmts: Vec<usize>,
+    defered_stmts_indices: Vec<usize>,
+    eval_defered: bool,
+    stmt_idx: usize,
 }
 
 impl Interpreter {
@@ -98,7 +100,7 @@ impl Interpreter {
     //----------------------------------------------------------------
 
     fn block_eval(&mut self, statments: &Vec<Spanned<Statement>>) -> anyhow::Result<()> {
-        self.stmt_eval(statments)?;
+        self.stmts_eval(statments)?;
         Ok(())
     }
 
@@ -149,9 +151,9 @@ impl Interpreter {
     ) -> anyhow::Result<()> {
         if let Object::Boolean(b) = self.expr_eval(&condition)? {
             if b {
-                self.stmt_eval(then_branch)
+                self.stmts_eval(then_branch)
             } else if let Some(else_then) = else_branch {
-                self.stmt_eval(else_then)
+                self.stmts_eval(else_then)
             } else {
                 Ok(())
             }
@@ -182,7 +184,7 @@ impl Interpreter {
     ) -> anyhow::Result<()> {
         if let Object::Boolean(mut b) = self.expr_eval(condition)? {
             while b {
-                self.stmt_eval(then_branch)?;
+                self.stmts_eval(then_branch)?;
                 b = self.expr_eval(condition)?.into();
             }
             Ok(())
@@ -191,39 +193,49 @@ impl Interpreter {
         }
     }
 
-    fn defer_eval(&mut self, defer_stmt: usize) -> anyhow::Result<()> {
-        self.defered_stmts.push(defer_stmt);
+    fn defer_eval(&mut self, defer_statement: &Spanned<Statement>) -> anyhow::Result<()> {
+        if self.eval_defered {
+            self.stmt_eval(defer_statement)?;
+        } else {
+            self.defered_stmts_indices.push(self.stmt_idx);
+        }
         Ok(())
     }
 
-    pub fn stmt_eval(&mut self, stmts: &Vec<Spanned<Statement>>) -> anyhow::Result<()> {
-        for stmt in stmts.iter().enumerate() {
-            match &stmt.1 .0 {
-                Statement::Error => return Err(anyhow::anyhow!("Error statment!")),
-                Statement::Block { statments } => self.block_eval(statments)?,
-                Statement::Assign(a) => self.assign_eval(a)?,
-                Statement::Expression { .. } => (),
-                Statement::Declaration {
-                    declaration_type,
-                    name,
-                    manual_type,
-                    value,
-                } => self.declar_eval(&declaration_type, &name.0, &manual_type, value)?,
-                Statement::FuncDeclaration { .. } => todo!(),
-                Statement::IfStmt {
-                    condition,
-                    then_branch,
-                    else_branch,
-                } => self.if_eval(&condition.0, &then_branch, &else_branch)?,
-                Statement::MatchStmt(_) => todo!(), //self.match_eval(match_stmt)?,
-                Statement::WhileStmt {
-                    condition,
-                    then_branch,
-                } => self.while_eval(&condition.0, &then_branch)?,
-                Statement::Defer { defered_statment } => self.defer_eval(stmt.0)?,
-                Statement::Empty => return Ok(()),
-                Statement::Test(expr) => self.test_eval(expr)?,
-            }
+    fn stmt_eval(&mut self, stmt: &Spanned<Statement>) -> anyhow::Result<()> {
+        match &stmt.0 {
+            Statement::Error => return Err(anyhow::anyhow!("Error statment!")),
+            Statement::Block { statments } => self.block_eval(&statments)?,
+            Statement::Assign(a) => self.assign_eval(&a)?,
+            Statement::Expression { .. } => (),
+            Statement::Declaration {
+                declaration_type,
+                name,
+                manual_type,
+                value,
+            } => self.declar_eval(&declaration_type, &name.0, &manual_type, &value)?,
+            Statement::FuncDeclaration { .. } => todo!(),
+            Statement::IfStmt {
+                condition,
+                then_branch,
+                else_branch,
+            } => self.if_eval(&condition.0, &then_branch, &else_branch)?,
+            Statement::MatchStmt(_) => todo!(), //self.match_eval(match_stmt)?,
+            Statement::WhileStmt {
+                condition,
+                then_branch,
+            } => self.while_eval(&condition.0, &then_branch)?,
+            Statement::Defer { defered_statment } => self.defer_eval(&*defered_statment)?,
+            Statement::Empty => return Ok(()),
+            Statement::Test(expr) => self.test_eval(&expr)?,
+        }
+        Ok(())
+    }
+
+    fn stmts_eval(&mut self, stmts: &Vec<Spanned<Statement>>) -> anyhow::Result<()> {
+        for idx_stmt in stmts.iter().enumerate() {
+            self.stmt_idx = idx_stmt.0;
+            self.stmt_eval(idx_stmt.1)?;
         }
         Ok(())
     }
@@ -239,19 +251,22 @@ impl Interpreter {
     //----------------------------------------------------------------
 
     pub fn interpret(&mut self, stmts: &Vec<Spanned<Statement>>) -> anyhow::Result<()> {
-        self.stmt_eval(stmts)?;
+        self.stmts_eval(stmts)?;
         let mut defer_stmt: Vec<Spanned<Statement>> = Vec::new();
-        for defer_index in &self.defered_stmts {
+        for defer_index in self.defered_stmts_indices.iter().rev() {
             defer_stmt.push(stmts[*defer_index].clone());
         }
-        self.stmt_eval(&defer_stmt)?;
+        self.eval_defered = true;
+        self.stmts_eval(&defer_stmt)?;
         Ok(())
     }
 
     pub fn new() -> Self {
         Self {
             vars: HashMap::new(),
-            defered_stmts: Vec::new(),
+            defered_stmts_indices: Vec::new(),
+            eval_defered: false,
+            stmt_idx: 0,
         }
     }
 }
