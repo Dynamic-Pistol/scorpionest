@@ -30,6 +30,7 @@ pub trait TokenParser<'a, I: TokenInput<'a>, O> =
 //----------------------------------------------------------------
 //-Expression Parsing---------------------------------------------
 //----------------------------------------------------------------
+pub struct Parser;
 
 fn recursive_expr_parser<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Expr> {
     recursive(|f| {
@@ -360,18 +361,23 @@ where
             stmt_parser
                 .clone()
                 .map_with(|ident, e| Spanned(ident, e.span()))
+                .repeated()
+                .at_least(1)
+                .collect::<Vec<_>>()
                 .delimited_by(just(TokenType::LeftBracket), just(TokenType::RightBracket)),
             (just(TokenType::Else)
                 .ignore_then(
                     stmt_parser
                         .map_with(|ident, e| Spanned(ident, e.span()))
-                        .map(Box::new),
+                        .repeated()
+                        .at_least(1)
+                        .collect::<Vec<_>>(),
                 )
                 .or_not()),
         )))
         .map(|(expr, then_stmt, else_stmt)| Statement::IfStmt {
             condition: Box::new(expr),
-            then_branch: Box::new(then_stmt),
+            then_branch: then_stmt,
             else_branch: else_stmt,
         })
 }
@@ -419,11 +425,14 @@ where
             stmt_parser
                 .clone()
                 .map_with(|ident, e| Spanned(ident, e.span()))
+                .repeated()
+                .at_least(1)
+                .collect::<Vec<_>>()
                 .delimited_by(just(TokenType::LeftBracket), just(TokenType::RightBracket)),
         )))
         .map(|(expr, then_stmt)| Statement::WhileStmt {
             condition: Box::new(expr),
-            then_branch: Box::new(then_stmt),
+            then_branch: then_stmt,
         })
 }
 
@@ -531,13 +540,20 @@ fn type_ident<'a, I: TokenInput<'a>>() -> impl TokenParser<'a, I, Spanned<Type>>
     }
 }
 
-pub fn parse<'a>(stream: impl TokenInput<'a>) -> Statement {
-    let res = stmt_parser().parse(stream).into_result();
+pub fn parse<'a>(stream: impl TokenInput<'a>) -> Vec<Spanned<Statement>> {
+    let res = stmt_parser()
+        .map_with(|ident, e| Spanned(ident, e.span()))
+        .repeated()
+        .collect::<Vec<_>>()
+        .parse(stream)
+        .into_result();
     match res {
-        Ok(stmt) => stmt,
-        Err(e) => {
-            println!("{e:?}");
-            Statement::Error
+        Ok(stmts) => stmts,
+        Err(errs) => {
+            for error in errs {
+                println!("{error:?}");
+            }
+            vec![]
         }
     }
 }

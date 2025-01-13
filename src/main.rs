@@ -46,7 +46,7 @@ fn get_prompt() -> String {
 fn run<'a>(input: &str) -> anyhow::Result<()> {
     let tokens = scan(input)?;
     let stream = get_stream((tokens, input));
-    let stmt = parse(stream);
+    let stmts = parse(stream);
     let mut interperter = Interpreter::new();
     interperter.interpret(&stmts)?;
     return Ok(());

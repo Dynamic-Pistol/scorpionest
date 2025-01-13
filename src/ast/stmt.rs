@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::utils::{spanned::Spanned, valtype::Type};
 
 use super::{expr::Expr, misc::*, pattern::Pattern};
@@ -43,13 +41,13 @@ pub enum Statement {
     },
     IfStmt {
         condition: Box<Spanned<Expr>>,
-        then_branch: Box<Spanned<Statement>>,
-        else_branch: Option<Box<Spanned<Statement>>>,
+        then_branch: Vec<Spanned<Statement>>,
+        else_branch: Option<Vec<Spanned<Statement>>>,
     },
     MatchStmt(MatchStmt),
     WhileStmt {
         condition: Box<Spanned<Expr>>,
-        then_branch: Box<Spanned<Statement>>,
+        then_branch: Vec<Spanned<Statement>>,
     },
     Defer {
         defered_statment: Box<Spanned<Statement>>,
