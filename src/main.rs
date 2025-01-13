@@ -7,7 +7,7 @@ mod parser;
 mod utils;
 
 use anyhow;
-use interperter::interperter::Interperter;
+use interperter::interperter::Interpreter;
 use lexer::lexer::scan;
 use parser::parser::{get_stream, parse};
 
@@ -47,7 +47,7 @@ fn run<'a>(input: &str) -> anyhow::Result<()> {
     let tokens = scan(input)?;
     let stream = get_stream((tokens, input));
     let stmt = parse(stream);
-    let mut interperter = Interperter::default();
-    interperter.stmt_eval(stmt)?;
+    let mut interperter = Interpreter::new();
+    interperter.interpret(&stmts)?;
     return Ok(());
 }

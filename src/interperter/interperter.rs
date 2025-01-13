@@ -12,11 +12,11 @@ use crate::{
 //-Expr Functions-------------------------------------------------
 //----------------------------------------------------------------
 #[derive(Debug, Clone)]
-pub struct Interperter {
+pub struct Interpreter {
     vars: HashMap<u64, (Object, bool)>,
 }
 
-impl Interperter {
+impl Interpreter {
     pub fn unary_eval(&mut self, unary: Unary) -> anyhow::Result<Object> {
         let value = self.expr_eval(unary.right.0)?;
         use crate::ast::misc::UnaryOp::*;
