@@ -1,6 +1,6 @@
-use crate::utils::{object::Object, valtype::Type};
+use crate::utils::valtype::Type;
 
-use super::expr::{Expr, Literal};
+use super::expr::Literal;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {

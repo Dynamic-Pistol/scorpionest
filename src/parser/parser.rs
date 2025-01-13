@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use chumsky::prelude::*;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
@@ -26,7 +24,8 @@ use crate::{
 ///----------------------------------------------------------------
 pub type TokenParserExtra<'a> = extra::Full<Rich<'a, TokenType>, (), ()>;
 pub trait TokenInput<'a> = chumsky::input::ValueInput<'a, Token = TokenType, Span = SimpleSpan>;
-pub trait TokenParser<'a, I: TokenInput<'a>, O> = Parser<'a, I, O, TokenParserExtra<'a>> + Clone;
+pub trait TokenParser<'a, I: TokenInput<'a>, O> =
+    chumsky::Parser<'a, I, O, TokenParserExtra<'a>> + Clone;
 
 //----------------------------------------------------------------
 //-Expression Parsing---------------------------------------------

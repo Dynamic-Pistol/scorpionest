@@ -2,11 +2,9 @@ use std::collections::HashMap;
 
 use crate::{
     ast::{
-        expr::{Binary, Expr, Literal, Unary},
-        pattern::Pattern,
-        stmt::{Assign, MatchStmt, Statement},
+        expr::{Binary, Expr, Unary},
+        stmt::{Assign, Statement},
     },
-    lexer::token::TokenType,
     utils::{object::Object, spanned::Spanned},
 };
 
