@@ -191,14 +191,14 @@ impl Interpreter {
         }
     }
 
-    fn defer_eval(&mut self, defer_stmt: &Spanned<Statement>) -> anyhow::Result<()> {
-        self.defered_stmts.push();
+    fn defer_eval(&mut self, defer_stmt: usize) -> anyhow::Result<()> {
+        self.defered_stmts.push(defer_stmt);
         Ok(())
     }
 
     pub fn stmt_eval(&mut self, stmts: &Vec<Spanned<Statement>>) -> anyhow::Result<()> {
-        for stmt in stmts {
-            match &stmt.0 {
+        for stmt in stmts.iter().enumerate() {
+            match &stmt.1 .0 {
                 Statement::Error => return Err(anyhow::anyhow!("Error statment!")),
                 Statement::Block { statments } => self.block_eval(statments)?,
                 Statement::Assign(a) => self.assign_eval(a)?,
@@ -220,7 +220,7 @@ impl Interpreter {
                     condition,
                     then_branch,
                 } => self.while_eval(&condition.0, &then_branch)?,
-                Statement::Defer { defered_statment } => self.defer_eval(&*defered_statment)?,
+                Statement::Defer { defered_statment } => self.defer_eval(stmt.0)?,
                 Statement::Empty => return Ok(()),
                 Statement::Test(expr) => self.test_eval(expr)?,
             }
