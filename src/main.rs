@@ -49,5 +49,5 @@ fn run<'a>(input: &str) -> anyhow::Result<()> {
     let stmts = parse(stream);
     let mut interperter = Interpreter::new();
     interperter.interpret(&stmts)?;
-    return Ok(());
+    Ok(())
 }
