@@ -234,9 +234,17 @@ impl Interpreter {
         Ok(())
     }
 
+    //----------------------------------------------------------------
+    //-Misc Functions-------------------------------------------------
+    //----------------------------------------------------------------
+
     pub fn interpret(&mut self, stmts: &Vec<Spanned<Statement>>) -> anyhow::Result<()> {
         self.stmt_eval(stmts)?;
-        // self.stmt_eval(&mut self.defered_stmt)?;
+        let mut defer_stmt: Vec<Spanned<Statement>> = Vec::new();
+        for defer_index in &self.defered_stmts {
+            defer_stmt.push(stmts[*defer_index].clone());
+        }
+        self.stmt_eval(&defer_stmt)?;
         Ok(())
     }
 
@@ -246,8 +254,4 @@ impl Interpreter {
             defered_stmts: Vec::new(),
         }
     }
-
-    //----------------------------------------------------------------
-    //-Misc Functions-------------------------------------------------
-    //----------------------------------------------------------------
 }
