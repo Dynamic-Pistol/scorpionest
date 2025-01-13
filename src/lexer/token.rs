@@ -15,18 +15,18 @@ pub enum TokenType {
     Trait,
     #[token("enum")]
     Enum,
-    #[token("impl")]
-    Impl,
-    #[token("defer")]
-    Defer,
     #[token("case")]
     Case,
     #[token("bitset")]
     BitPack,
-    #[token("fn")]
-    Function,
-    #[token("def")]
-    Define,
+    #[token("impl")]
+    Impl,
+    #[token("defer")]
+    Defer,
+    #[token("is")]
+    Is,
+    #[token("as")]
+    As,
     #[token("if")]
     If,
     #[token("elif")]
@@ -55,6 +55,10 @@ pub enum TokenType {
     Var,
     #[token("let")]
     Let,
+    #[token("fun")]
+    Function,
+    #[token("def")]
+    Define,
     #[token("scope")]
     Scope,
     #[token("val")]
