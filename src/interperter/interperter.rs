@@ -16,13 +16,6 @@ pub struct Interperter {
     vars: HashMap<u64, (Object, bool)>,
 }
 
-impl Default for Interperter {
-    fn default() -> Self {
-        Self {
-            vars: HashMap::new(),
-        }
-    }
-}
 impl Interperter {
     pub fn unary_eval(&mut self, unary: Unary) -> anyhow::Result<Object> {
         let value = self.expr_eval(unary.right.0)?;
@@ -229,6 +222,12 @@ impl Interperter {
         let obj = self.expr_eval(expr)?;
         println!("Test Output:{obj}");
         Ok(())
+    }
+    pub fn new() -> Self {
+        Self {
+            vars: HashMap::new(),
+            defered_stmts: Vec::new(),
+        }
     }
 
     //----------------------------------------------------------------
